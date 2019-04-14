@@ -1,7 +1,8 @@
-import { Collection, Db, MongoClient, MongoError, ObjectId } from 'mongodb';
+import { Collection, Db, MongoClient, ObjectId } from 'mongodb';
 import { AllowedStatistics, FetchQueue, QueueError, QueueItem, QueueItemStatus } from './FetchQueueInterface';
 import { MongoDbQueueConfig } from './MongoDBQueueConfig';
 import { MongoQueueItem } from './MongoQueueItem';
+import { Operations } from '../../utils/operations';
 
 export class MongoDbQueue implements FetchQueue {
   config: MongoDbQueueConfig;
@@ -414,9 +415,9 @@ export class MongoDbQueue implements FetchQueue {
   }
 }
 
-export class GarbageCollector {
+class GarbageCollector {
   collection: Collection<MongoQueueItem>;
-  intervalId: any;
+  timeoutId: any;
   msInterval: number; // default is 2 min (see constructor)
 
   constructor(collection: Collection<MongoQueueItem>, msInterval: number = 1000 * 60 * 2) {
@@ -425,35 +426,28 @@ export class GarbageCollector {
   }
 
   start() {
-    this.intervalId = setInterval(
-      async () => {
-        console.info(`${new Date()}: Starting GC task`);
-        const currentTime = Date.now();
-        const res = await this.collection.updateMany(
-          {
-            $and: [
-              { fetched: { $ne: true } },
-              { status: { $ne: QueueItemStatus.Queued } },
-              { modificationTimestamp: { $lt: currentTime - this.msInterval } },
-            ],
-          },
-          { $set: { status: QueueItemStatus.Queued, modificationTimestamp: currentTime } },
-        );
-
-        if (res && res.result && res.result.ok === 1) {
-          console.info(`${res.result.nModified} document were rolled back to Queued status`);
-        }
-        console.info(`${new Date()}: Finished GC task`);
-      },
-      this.msInterval);
+    this.timeoutId = setTimeout(
+      () => {
+        Operations.gcTask(this.collection, this.msInterval)
+                  .then(() => {
+                    setTimeout(
+                      () => {
+                        this.start();
+                      },
+                      this.msInterval);
+                  })
+                  .catch((error: Error) => {
+                    console.log(error);
+                  });
+      }, this.msInterval);
   }
 
   stop() {
-    clearInterval(this.intervalId);
+    clearTimeout(this.timeoutId);
   }
 }
 
-export class Monitor {
+class Monitor {
   statisticCollection: Collection<MongoQueueItem>;
   queue: Collection<MongoQueueItem>;
   timeoutId: any;
@@ -471,69 +465,16 @@ export class Monitor {
     this.onMonitorTask();
   }
 
-  async onMonitorTask() {
-    const id = Math.random();
-    const currentTime = new Date().getTime();
-    const totalCountPromise = this.queue.countDocuments();
-    const fetchedCountPromise = this.queue.countDocuments({ fetched: true });
-    const aggregationResultPromise: any = this.queue.aggregate([
-      { $match: { fetched: true } },
-      {
-        $group: {
-          _id: 'null',
-          actualDataSizeMax: { $max: '$stateData.actualDataSize' },
-          contentLengthMax: { $max: '$stateData.contentLength' },
-          downloadTimeMax: { $max: '$stateData.downloadTime' },
-          requestLatencyMax: { $max: '$stateData.requestLatency' },
-          requestTimeMax: { $max: '$stateData.requestTime' },
-          actualDataSizeMin: { $min: '$stateData.actualDataSize' },
-          contentLengthMin: { $min: '$stateData.contentLength' },
-          downloadTimeMin: { $min: '$stateData.downloadTime' },
-          requestLatencyMin: { $min: '$stateData.requestLatency' },
-          requestTimeMin: { $min: '$stateData.requestTime' },
-          actualDataSizeAvg: { $avg: '$stateData.actualDataSize' },
-          contentLengthAvg: { $avg: '$stateData.contentLength' },
-          downloadTimeAvg: { $avg: '$stateData.downloadTime' },
-          requestLatencyAvg: { $avg: '$stateData.requestLatency' },
-          requestTimeAvg: { $avg: '$stateData.requestTime' },
-        },
-      },
-    ]);
-    const aggregationResultArrPromise: any = this.queue.aggregate([
-      {
-        $group: {
-          _id: '$status',
-          total: { $sum: 1 },
-        },
-      },
-    ]);
-
-    try {
-      const values = await Promise.all([totalCountPromise, fetchedCountPromise,
-        aggregationResultPromise, aggregationResultArrPromise]);
-
-      let aggregationResult = values[2].next();
-      if (!aggregationResult) {
-        aggregationResult = {};
-      }
-      aggregationResult.totalCount = values[0];
-      aggregationResult.fetchedCount = values[1];
-      aggregationResult.timestamp = currentTime;
-      aggregationResult.timestampFinish = new Date().getTime();
-
-      const aggregationResultArr = values[3].toArray();
-      for (let i = 0; i < aggregationResultArr.length; i += 1) {
-        aggregationResult[aggregationResultArr[i]._id] = aggregationResultArr[i].total;
-      }
-
-      delete aggregationResult._id;
-      await this.statisticCollection.insertOne(aggregationResult);
-    } catch (error) {
-      console.trace(error);
-    }
-    this.timeoutId = setTimeout(() => {
-      this.onMonitorTask();
-    }, this.msInterval);
+  onMonitorTask() {
+    Operations.monitorTask(this.queue, this.statisticCollection)
+              .then(() => {
+                setTimeout(() => {
+                  this.onMonitorTask();
+                }, this.msInterval);
+              })
+              .catch((error: Error) => {
+                console.log(error);
+              });
   }
 
   stop() {
