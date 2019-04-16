@@ -41,6 +41,7 @@ export class Utils {
       // wait for 1 minute
       await Utils.wait(TimeUnit.MINUTE);
     }
+    await client.close();
   }
 
   async runGC(connectionConfig: MongoDbQueueConfig, countToFinish: number = 0): Promise<void> {
@@ -85,6 +86,7 @@ export class Utils {
       }
       await Utils.wait(invalidPeriod);
     }
+    await client.close();
   }
 
   async dropQueue(connectionConfig: MongoDbQueueConfig): Promise<void> {
@@ -101,6 +103,8 @@ export class Utils {
 
     await statisticCollection.drop();
     await queueCollection.drop();
+
+    await client.close();
   }
 }
 

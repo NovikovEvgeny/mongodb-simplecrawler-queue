@@ -2,6 +2,10 @@ import { Collection } from 'mongodb';
 import { QueueItemStatus } from '..';
 import { MongoQueueItem } from '../types/queue/MongoQueueItem';
 
+/**
+ * Aggregation result object used for monitoring tasks
+ * Collects all statistic data about state of the queue at the moment
+ */
 export interface AggregationResult {
   actualDataSizeMax: number;
   contentLengthMax: number;
@@ -37,12 +41,22 @@ export interface AggregationResult {
   timestampFinish: number;
 }
 
+/**
+ * Operations class - single tasks operation
+ */
 export class Operations {
 
+  /**
+   * Single Monitoring task operation - collect all statistic data about state of the queue
+   * and put it to statistic collection as new Item
+   *
+   * @param queueCollection source QueueCollection of {@link QueueItem}
+   * @param statisticCollection destination Statistic Collection of {@link AggregationResult} items
+   */
   static async monitorTask(queueCollection: Collection<MongoQueueItem>,
                             statisticCollection: Collection<MongoQueueItem>): Promise<AggregationResult> {
     const currentTime = new Date().getTime();
-
+    console.log('here');
     const totalCountPromise = queueCollection.countDocuments();
     const fetchedCountPromise = queueCollection.countDocuments({ fetched: true });
     const aggregationResultPromise: any = queueCollection.aggregate([
@@ -77,27 +91,39 @@ export class Operations {
       },
     ]);
 
+    console.log('before try');
     try {
       const values = await Promise.all([totalCountPromise, fetchedCountPromise,
         aggregationResultPromise, aggregationResultArrPromise]);
+      console.log('after try!');
 
-      let aggregationResult = values[2].next();
+      let aggregationResult = await values[2].next();
+      console.log(aggregationResult);
+      console.log('1');
       if (!aggregationResult) {
         aggregationResult = {};
       }
-
+      console.log(aggregationResult);
+      console.log(2);
       aggregationResult.totalCount = values[0];
       aggregationResult.fetchedCount = values[1];
       aggregationResult.timestamp = currentTime;
       aggregationResult.timestampFinish = new Date().getTime();
-
-      const aggregationResultArr = values[3].toArray();
+      console.log(aggregationResult);
+      console.log(3);
+      const aggregationResultArr = await values[3].toArray();
       for (let i = 0; i < aggregationResultArr.length; i += 1) {
         aggregationResult[aggregationResultArr[i]._id] = aggregationResultArr[i].total;
       }
-
+      console.log(aggregationResult);
+      console.log(4);
       delete aggregationResult._id;
+      console.log(aggregationResult);
+      console.log(5);
       await statisticCollection.insertOne(aggregationResult);
+
+      console.log(aggregationResult);
+      console.log(6);
 
       return aggregationResult;
     } catch (error) {
@@ -106,6 +132,12 @@ export class Operations {
     }
   }
 
+  /**
+   * Single garbage collector task. Roll back all spooled, but not fetched items with "old" modification timestamp
+   *
+   * @param queueCollection source QueueCollection of {@link QueueItem}
+   * @param invalidPeriodMs invalid period in milliseconds, after this amount of ms item is considered as "old"
+   */
   static async gcTask(queueCollection: Collection<MongoQueueItem>, invalidPeriodMs: number) {
     const currentTime = new Date().getTime();
 

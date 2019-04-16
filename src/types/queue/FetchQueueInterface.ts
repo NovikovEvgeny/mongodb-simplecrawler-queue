@@ -9,6 +9,8 @@
  * QueueItem possible statuses
  * This enum contains everything what was found in original simplecrawler codebase
  */
+import { MongoDbQueueConfig } from './MongoDBQueueConfig';
+
 export enum QueueItemStatus {
   Queued = 'queued',
   Spooled = 'spooled',
@@ -167,14 +169,18 @@ export interface FetchQueue {
   /**
    * Checks if a URL already exists in the queue. Returns true if URL already exists.
    * @param url URL to check the existence of in the queue
-   * @return Promise<boolean> value of the promise is true if it exists, false otherwise
+   * @param callback if defined - Gets two parameters, `error` and `count`.
+   *  If the operation was successful, `error` will be `null`.
+   * @return Promise<boolean> value of the promise is true if it exists, false otherwise. if callback is not defined
    */
   exists(url: string, callback: Function | null): Promise<boolean | void>;
 
   /**
    * Get a queue item by index
    * @param index The index of the queue item in the queue
-   * @return Promise<QueueItem> with {@link QueueItem}.
+   * @param callback if defined - Gets two parameters, `error` and `queueItem`.
+   * If the operation was successful, `error` will be `null`.
+   * @return Promise<QueueItem> with {@link QueueItem}. if callback is not defined
    * If index is more than current length of the queue,
    * Promise will be rejected with 'out of range' value
    * @deprecated
@@ -186,7 +192,11 @@ export interface FetchQueue {
    * @param queueItem Queue item that is to be added to the queue
    * @param [force=false] If true, the queue item will
    * be added regardless of whether it already exists in the queue
-   * @return Promise<QueueItem> Promise with {@link QueueItem} value.
+   *
+   * @param callback if defined - Gets two parameters, `error` and `queueItem`. If the operation was successful,
+   * error` will be `null` and `queueItem` will be the item that was added to the queue. It's status property
+   * will have changed to `"queued"`.
+   * @return Promise<QueueItem> if callback is not defined. Promise with {@link QueueItem} value.
    * If the operation was successful, {@link QueueItem} will be the item
    * that was added to the queue. It's {@link QueueItem.status} property
    * will have changed to `{@link QueueItemStatus.Queued}.
@@ -198,13 +208,18 @@ export interface FetchQueue {
    * @param id ID of the queue item that is to be updated
    * @param updates Object that will be deeply assigned (as in `Object.assign`)
    * to the queue item. That means that nested objects will also be resursively assigned.
-   * @return Promise<QueueItem> with updated {@link QueueItem}
+   * @param callback if defined - Gets two parameters, `error` and `queueItem`.
+   * If the operation was successful, `error` will be `null`.
+   * @return Promise<QueueItem> with updated {@link QueueItem} if callback is not defined
    */
   update(id: Number, updates: QueueItem, callback: Function | null): Promise<QueueItem | void>;
 
   /**
    * Gets the first unfetched item in the queue
-   * @return Promise<QueueItem> Promise with {@link QueueItem}
+   * @param callback if defined - Gets two parameters, `error` and `queueItem`. If the operation was successful, `error`
+   * will be `null`. If there are unfetched queue items left, `queueItem` will be the oldest one found.
+   * If not, `queueItem` will be `null`.
+   * @return Promise<QueueItem> Promise with {@link QueueItem} if callback is not defined
    * If there are unfetched queue items left, {@link QueueItem} will be the oldest one found.
    * If not, value of the promise will be `null`.
    */
@@ -215,7 +230,9 @@ export interface FetchQueue {
    * queue. This means you can eg. get the maximum request time, download size
    * etc.
    * @param statisticName Can be any of the strings in {@link AllowedStatistics}
-   * @return Promise<Number> calculated value
+   * @param callback if defined - Gets two parameters, `error` and `max`.
+   * If the operation was successful, `error` will be `null`.
+   * @return Promise<Number> calculated value if callback is undefined
    */
   max(statisticName: string, callback: Function | null): Promise<number | void>;
 
@@ -224,7 +241,9 @@ export interface FetchQueue {
    * queue. This means you can eg. get the minimum request time, download size
    * etc.
    * @param statisticName Can be any of the strings in {@link AllowedStatistics}
-   * @return Promise<Number> calculated value
+   * @param callback if defined - Gets two parameters, `error` and `min`.
+   * If the operation was successful, `error` will be `null`.
+   * @return Promise<Number> calculated value if callback is undefined
    */
   min(statisticName: string, callback: Function | null): Promise<number | void>;
 
@@ -233,7 +252,9 @@ export interface FetchQueue {
    * queue. This means you can eg. get the average request time, download size
    * etc.
    * @param statisticName Can be any of the strings in {@link AllowedStatistics}
-   * @return Promise<Number> calculated value
+   * @param callback if defined - Gets two parameters, `error` and `avg`.
+   * If the operation was successful, `error` will be `null`.
+   * @return Promise<Number> calculated value if callback is undefined
    */
   avg(statisticName: string, callback: Function | null): Promise<number | void>;
 
@@ -241,7 +262,9 @@ export interface FetchQueue {
    * Counts the items in the queue that match a selector
    * @param comparator Object Comparator object used to filter items.
    * Queue items that are counted need to match all the properties of this object.
-   * @return Promise<Number> with value of calculated items
+   * @param callback if defined - Gets two parameters, `error` and `items`.
+   * If the operation was successful, `error` will be `null` and `items` will be an array of QueueItems.
+   * @return Promise<Number> with value of calculated items. If callback is undefined
    */
   countItems(comparator: object, callback: Function | null): Promise<number | void>;
 
@@ -249,13 +272,17 @@ export interface FetchQueue {
    * Filters and returns the items in the queue that match a selector
    * @param comparator Object Comparator object used to filter items.
    * Queue items that are returned need to match all the properties of this object.
-   * @return Promise<Number> with value of calculated items
+   * @param callback - if defined - Gets two parameters, `error` and `items`. If the operation was successful,
+   * `error` will be `null` and `items` will be an array of QueueItems.
+   * @return Promise<Number> with value of calculated items. If callback if undefined.
    */
   filterItems(comparator: object, callback: Function | null): Promise<QueueItem[] | void>;
 
   /**
    * Gets the total number of queue items in the queue
-   * @return Promise<Number> total number of queued items
+   * @param callback if defined - Gets two parameters, `error` and `length`.
+   * If the operation was successful, `error` will be `null`.
+   * @return Promise<Number> total number of queued items. If callback is undefined
    */
   getLength(callback: Function | null): Promise<number | void>;
 
@@ -272,7 +299,21 @@ export interface FetchQueue {
   /*
    * custom methods
    */
-  init(config: any, callback: Function | null): Promise<any | void>;
+  /**
+   * Initialization function - open a connection
+   *
+   * @param config MongoDBQueueConfig
+   * @param callback callback function
+   * @returns Promise<void> if no callback is defined
+   */
+  init(config: MongoDbQueueConfig | any, callback: Function | null): Promise<any | void>;
 
-  finalize(config: any, callback: Function | null): Promise<any | void>;
+  /**
+   * Finalize method - close a connection
+   *
+   * @param config MongoDBQueueConfig
+   * @param callback callback function
+   * @returns Promise<void> if no callback is defined
+   */
+  finalize(config: MongoDbQueueConfig | any, callback: Function | null): Promise<any | void>;
 }

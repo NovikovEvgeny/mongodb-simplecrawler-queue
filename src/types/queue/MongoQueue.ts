@@ -12,7 +12,7 @@ export class MongoDbQueue implements FetchQueue {
   garbageCollector!: GarbageCollector;
   monitor!: Monitor;
 
-  constructor(config: MongoDbQueueConfig) {
+  constructor(config: MongoDbQueueConfig | any) {
     this.config = config;
     if (this.config.GCConfig) {
       this.config.GCConfig.run = this.config.GCConfig.run || false;
