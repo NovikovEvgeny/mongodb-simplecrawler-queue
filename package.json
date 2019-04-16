@@ -1,6 +1,6 @@
 {
   "name": "mongodb-simplecrawler-queue",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "MongoDB FetchQueue Implementation for Simplecrawler",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
