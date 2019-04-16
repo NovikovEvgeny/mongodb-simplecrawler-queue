@@ -125,6 +125,8 @@ export class MongoDbQueue implements FetchQueue {
         { status: 1 },
         { partialFilterExpression: { status: { $eq: QueueItemStatus.Queued } } });
 
+      await this.collection.createIndex({url: 'hashed'});
+
       if (this.config.GCConfig.run) {
         this.garbageCollector =
           new GarbageCollector(this.collection, this.config.GCConfig.msInterval);

@@ -19,5 +19,5 @@ export {
   AllowedStatistics,
   StateData,
   FetchQueue,
-  Utils
+  Utils,
 };

@@ -54,9 +54,8 @@ export class Operations {
    * @param statisticCollection destination Statistic Collection of {@link AggregationResult} items
    */
   static async monitorTask(queueCollection: Collection<MongoQueueItem>,
-                            statisticCollection: Collection<MongoQueueItem>): Promise<AggregationResult> {
+                           statisticCollection: Collection<MongoQueueItem>): Promise<AggregationResult> {
     const currentTime = new Date().getTime();
-    console.log('here');
     const totalCountPromise = queueCollection.countDocuments();
     const fetchedCountPromise = queueCollection.countDocuments({ fetched: true });
     const aggregationResultPromise: any = queueCollection.aggregate([
@@ -91,40 +90,26 @@ export class Operations {
       },
     ]);
 
-    console.log('before try');
     try {
-      const values = await Promise.all([totalCountPromise, fetchedCountPromise,
-        aggregationResultPromise, aggregationResultArrPromise]);
-      console.log('after try!');
+      const [totalCountPromiseRes, fetchedCountPromiseRes,
+        aggregationResultPromiseRes, aggregationResultArrPromiseRes] =
+        await Promise.all([totalCountPromise, fetchedCountPromise,
+          aggregationResultPromise, aggregationResultArrPromise]);
 
-      let aggregationResult = await values[2].next();
-      console.log(aggregationResult);
-      console.log('1');
+      let aggregationResult = await aggregationResultPromiseRes.next();
       if (!aggregationResult) {
         aggregationResult = {};
       }
-      console.log(aggregationResult);
-      console.log(2);
-      aggregationResult.totalCount = values[0];
-      aggregationResult.fetchedCount = values[1];
+      aggregationResult.totalCount = totalCountPromiseRes;
+      aggregationResult.fetchedCount = fetchedCountPromiseRes;
       aggregationResult.timestamp = currentTime;
       aggregationResult.timestampFinish = new Date().getTime();
-      console.log(aggregationResult);
-      console.log(3);
-      const aggregationResultArr = await values[3].toArray();
+      const aggregationResultArr = await aggregationResultArrPromiseRes.toArray();
       for (let i = 0; i < aggregationResultArr.length; i += 1) {
         aggregationResult[aggregationResultArr[i]._id] = aggregationResultArr[i].total;
       }
-      console.log(aggregationResult);
-      console.log(4);
       delete aggregationResult._id;
-      console.log(aggregationResult);
-      console.log(5);
       await statisticCollection.insertOne(aggregationResult);
-
-      console.log(aggregationResult);
-      console.log(6);
-
       return aggregationResult;
     } catch (error) {
       console.log(error);
