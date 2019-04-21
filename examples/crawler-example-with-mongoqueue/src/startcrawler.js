@@ -1,5 +1,4 @@
-const MongoDbQueue = require("./dist").MongoDbQueue;
-
+const MongoDbQueue = require('../../../dist/index').MongoDbQueue;
 const Crawler = require('simplecrawler');
 
 const services = process.env.VCAP_SERVICES ? JSON.parse(process.env.VCAP_SERVICES) : null;
@@ -15,6 +14,7 @@ const connectionConfig = {
     url:  url || 'mongodb://192.168.99.100:27017', // mongodb://localhost:27017
     dbName: dbName || 'crawler',
     collectionName: 'queue',
+    crawlerName: 'someCrawler',
     GCConfig: {
         run: process.argv.indexOf('gc') !== -1,
         msInterval: 1000 * 60 * 5,
@@ -38,15 +38,18 @@ crawlerQueue.init(err => {
     console.log('queue init is done');
 
     const crawler = new Crawler('https://en.wikipedia.org/wiki/Main_Page');
-    crawler.maxDepth = 3;
+    crawler.maxDepth = 1;
     crawler.allowInitialDomainChange = false;
     crawler.filterByDomain = true;
     crawler.interval = 250;
 
     crawler.on('complete', () => {
         console.log('job is successfully finished!');
-        crawlerQueue.getLength((len) => {
-            console.log(`final length is ${len}`)
+        crawlerQueue.getLength((err, len) => {
+            console.log(`final length is ${len}`);
+            crawlerQueue.finalize((err, res) => {
+                process.nextTick(() => process.exit(0));
+            })
         });
     });
 

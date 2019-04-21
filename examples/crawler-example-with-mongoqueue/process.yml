@@ -1,0 +1,23 @@
+apps:
+  - name: 'crawler'
+    script   : src/startcrawler.js
+    instances: 3
+    autorestart: false
+    exec_mode: cluster
+    env    :
+      NODE_ENV: development
+      CLEAR_QUEUE: true
+    env_production:
+      NODE_ENV: production
+      CLEAR_QUEUE: true
+  - name: 'monitor'
+    script: src/monitoring_gc.js
+    instances: 1
+    autorestart: false
+    exec_mode: cluster
+    env    :
+      NODE_ENV: development
+      CLEAR_QUEUE: true
+    env_production:
+      NODE_ENV: production
+      CLEAR_QUEUE: true

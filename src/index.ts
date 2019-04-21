@@ -9,6 +9,7 @@ import {
   QueueError,
 } from './types/queue/FetchQueueInterface';
 import { Utils } from './utils/util';
+import { Operations } from './utils/operations';
 
 export {
   MongoDbQueue,
@@ -20,4 +21,5 @@ export {
   StateData,
   FetchQueue,
   Utils,
+  Operations,
 };

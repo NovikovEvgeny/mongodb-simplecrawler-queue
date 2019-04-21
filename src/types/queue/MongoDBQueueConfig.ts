@@ -16,6 +16,12 @@ export interface MongoDbQueueConfig {
   dbName: string;
 
   /**
+   * Crawler instance name (for statistic data). If more than 1 instance are running in parallel, better to have
+   * different names for crawler instances for correct statistic
+   */
+  crawlerName: string;
+
+  /**
    * Garbage collector task configuration.
    */
   GCConfig: {

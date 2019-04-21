@@ -14,6 +14,11 @@ export class MongoDbQueue implements FetchQueue {
 
   constructor(config: MongoDbQueueConfig | any) {
     this.config = config;
+
+    if (!this.config.crawlerName) {
+      this.config.crawlerName = 'crawler';
+    }
+
     if (this.config.GCConfig) {
       this.config.GCConfig.run = this.config.GCConfig.run || false;
       this.config.GCConfig.msInterval = this.config.GCConfig.msInterval || 1000 * 60 * 2;
@@ -98,7 +103,7 @@ export class MongoDbQueue implements FetchQueue {
     }
   }
 
-  private handleCallback<T>(error: any, returnResult: any, callback: Function | null): Promise<T> {
+  private handleCallback<T>(error: any, returnResult: any, callback?: Function): Promise<T> {
     let returnError = error;
     if (returnError) {
       returnError = returnError instanceof Error ? returnError : new Error(returnError);
@@ -113,7 +118,7 @@ export class MongoDbQueue implements FetchQueue {
     return Promise.resolve(returnResult);
   }
 
-  async init(callback: Function | null): Promise<void> {
+  async init(callback?: Function): Promise<void> {
     let returnError = null;
     try {
 
@@ -125,7 +130,7 @@ export class MongoDbQueue implements FetchQueue {
         { status: 1 },
         { partialFilterExpression: { status: { $eq: QueueItemStatus.Queued } } });
 
-      await this.collection.createIndex({url: 'hashed'});
+      await this.collection.createIndex({ url: 'hashed' });
 
       if (this.config.GCConfig.run) {
         this.garbageCollector =
@@ -148,7 +153,7 @@ export class MongoDbQueue implements FetchQueue {
     return this.handleCallback(returnError, null, callback);
   }
 
-  async finalize(callback: Function | null): Promise<void> {
+  async finalize(callback?: Function): Promise<void> {
     let returnError = null;
     try {
       if (this.config.GCConfig.run && this.garbageCollector) {
@@ -165,7 +170,7 @@ export class MongoDbQueue implements FetchQueue {
     return this.handleCallback(returnError, null, callback);
   }
 
-  async drop(callback: Function | null): Promise<void> {
+  async drop(callback?: Function): Promise<void> {
     let returnError = null;
     try {
       await this.collection.drop();
@@ -175,11 +180,14 @@ export class MongoDbQueue implements FetchQueue {
     return this.handleCallback(returnError, null, callback);
   }
 
-  async add(queueItemOriginal: QueueItem, force: boolean, callback: Function | null): Promise<QueueItem | void> {
+  async add(queueItemOriginal: QueueItem, force: boolean, callback?: Function): Promise<QueueItem | void> {
     let returnError = null;
     let elem = null;
     try {
-      const queueItem = Object.assign({ modificationTimestamp: Date.now() }, queueItemOriginal);
+      const queueItem = Object.assign({
+        modificationTimestamp: Date.now(),
+        modifiedBy: this.config.crawlerName,
+      }, queueItemOriginal);
       delete queueItem.id;
 
       if (force) {
@@ -201,7 +209,7 @@ export class MongoDbQueue implements FetchQueue {
     return this.handleCallback(returnError, elem, callback);
   }
 
-  async exists(url: string, callback: Function | null): Promise<boolean | void> {
+  async exists(url: string, callback?: Function): Promise<boolean | void> {
     let res = null;
     let returnError = null;
     try {
@@ -213,7 +221,7 @@ export class MongoDbQueue implements FetchQueue {
     return this.handleCallback(returnError, res, callback);
   }
 
-  async get(index: number, callback: Function | null): Promise<QueueItem | void> {
+  async get(index: number, callback?: Function): Promise<QueueItem | void> {
     let returnError = null;
     let res = null;
     try {
@@ -229,7 +237,7 @@ export class MongoDbQueue implements FetchQueue {
     return this.handleCallback(returnError, res, callback);
   }
 
-  async update(id: number, updates: QueueItem, callback: Function | null): Promise<MongoQueueItem | void> {
+  async update(id: number, updates: QueueItem, callback?: Function): Promise<MongoQueueItem | void> {
     let returnError = null;
     let resultQueueItem = null;
     try {
@@ -237,6 +245,7 @@ export class MongoDbQueue implements FetchQueue {
       this.convertForUpdate(updates, '', updatesAsAnObject);
 
       updatesAsAnObject.modificationTimestamp = Date.now();
+      updatesAsAnObject.modifiedBy = this.config.crawlerName;
 
       const res = await this.collection
                             .findOneAndUpdate({ _id: new ObjectId(id) },
@@ -258,14 +267,22 @@ export class MongoDbQueue implements FetchQueue {
     return this.handleCallback(returnError, resultQueueItem, callback);
   }
 
-  async oldestUnfetchedItem(callback: Function | null): Promise<QueueItem | void> {
+  async oldestUnfetchedItem(callback?: Function): Promise<QueueItem | void> {
     let returnError = null;
     let oldestUnfetchedItem = null;
     try {
-      const res = await this.collection
-                            .findOneAndUpdate(
-                              { status: QueueItemStatus.Queued },
-                              { $set: { status: QueueItemStatus.Pulled, modificationTimestamp: Date.now() } });
+      const res = await this
+        .collection
+        .findOneAndUpdate(
+          { status: QueueItemStatus.Queued },
+        {
+          $set: {
+            status: QueueItemStatus.Pulled,
+            modificationTimestamp: Date.now(),
+            modifiedBy: this.config.crawlerName,
+          },
+        });
+
       if (res.ok === 1) {
         oldestUnfetchedItem = res.value;
         if (oldestUnfetchedItem) {
@@ -280,7 +297,7 @@ export class MongoDbQueue implements FetchQueue {
     return this.handleCallback(returnError, oldestUnfetchedItem, callback);
   }
 
-  async max(statisticName: string, callback: Function | null): Promise<number | void> {
+  async max(statisticName: string, callback?: Function): Promise<number | void> {
     let returnError = null;
     let result: any = null;
     try {
@@ -310,7 +327,7 @@ export class MongoDbQueue implements FetchQueue {
     return this.handleCallback(returnError, result, callback);
   }
 
-  async min(statisticName: string, callback: Function | null): Promise<number | void> {
+  async min(statisticName: string, callback?: Function): Promise<number | void> {
     let returnError = null;
     let result: any = null;
     try {
@@ -340,7 +357,7 @@ export class MongoDbQueue implements FetchQueue {
     return this.handleCallback(returnError, result, callback);
   }
 
-  async avg(statisticName: string, callback: Function | null): Promise<number | void> {
+  async avg(statisticName: string, callback?: Function): Promise<number | void> {
     let returnError = null;
     let result: any = null;
     try {
@@ -370,7 +387,7 @@ export class MongoDbQueue implements FetchQueue {
     return this.handleCallback(returnError, result, callback);
   }
 
-  async countItems(comparator: object, callback: Function | null): Promise<number | void> {
+  async countItems(comparator: object, callback?: Function): Promise<number | void> {
     let returnError = null;
     let result = null;
     try {
@@ -383,7 +400,7 @@ export class MongoDbQueue implements FetchQueue {
     return this.handleCallback(returnError, result, callback);
   }
 
-  async filterItems(comparator: object, callback: Function | null): Promise<QueueItem[] | void> {
+  async filterItems(comparator: object, callback?: Function): Promise<QueueItem[] | void> {
     let returnError = null;
     let result = null;
     try {
@@ -396,8 +413,7 @@ export class MongoDbQueue implements FetchQueue {
     return this.handleCallback(returnError, result, callback);
   }
 
-  async getLength(callback: Function | null): Promise<number | void> {
-    // return await this.wrapTo(this.innerGetLength.bind(this), callback);
+  async getLength(callback?: Function): Promise<number | void> {
     let returnError = null;
     let result = null;
     try {
@@ -408,11 +424,11 @@ export class MongoDbQueue implements FetchQueue {
     return this.handleCallback(returnError, result, callback);
   }
 
-  async freeze(filename: string, callback: Function | null): Promise<boolean | void> {
+  async freeze(filename: string, callback?: Function): Promise<boolean | void> {
     return this.handleCallback(null, true, callback);
   }
 
-  async defrost(filename: string, callback: Function | null): Promise<boolean | void> {
+  async defrost(filename: string, callback?: Function): Promise<boolean | void> {
     return this.handleCallback(null, true, callback);
   }
 }

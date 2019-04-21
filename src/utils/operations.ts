@@ -39,6 +39,8 @@ export interface AggregationResult {
   fetchedCount: number;
   timestamp: number;
   timestampFinish: number;
+
+  crawlers: [];
 }
 
 /**
@@ -81,6 +83,7 @@ export class Operations {
         },
       },
     ]);
+
     const aggregationResultArrPromise: any = queueCollection.aggregate([
       {
         $group: {
@@ -90,11 +93,20 @@ export class Operations {
       },
     ]);
 
+    const aggregationResultCrawlersPromise: any = queueCollection.aggregate([
+      {
+        $group: {
+          _id: '$modifiedBy',
+          total: { $sum: 1 },
+        },
+      },
+    ]);
+
     try {
       const [totalCountPromiseRes, fetchedCountPromiseRes,
-        aggregationResultPromiseRes, aggregationResultArrPromiseRes] =
+        aggregationResultPromiseRes, aggregationResultArrPromiseRes, aggregationResultCrawlersRes] =
         await Promise.all([totalCountPromise, fetchedCountPromise,
-          aggregationResultPromise, aggregationResultArrPromise]);
+          aggregationResultPromise, aggregationResultArrPromise, aggregationResultCrawlersPromise]);
 
       let aggregationResult = await aggregationResultPromiseRes.next();
       if (!aggregationResult) {
@@ -108,6 +120,17 @@ export class Operations {
       for (let i = 0; i < aggregationResultArr.length; i += 1) {
         aggregationResult[aggregationResultArr[i]._id] = aggregationResultArr[i].total;
       }
+
+      const aggregationResultCrawlers = await aggregationResultCrawlersRes.toArray();
+      console.log(aggregationResultCrawlers);
+      aggregationResult.crawlers = [];
+      for (let i = 0; i < aggregationResultCrawlers.length; i += 1) {
+        aggregationResult.crawlers.push({
+          crawlerName: aggregationResultCrawlers[i]._id,
+          modifiedCount: aggregationResultCrawlers[i].total,
+        });
+      }
+
       delete aggregationResult._id;
       await statisticCollection.insertOne(aggregationResult);
       return aggregationResult;

@@ -14,4 +14,9 @@ export interface MongoQueueItem extends QueueItem {
    * last modification timestamp. Useful for garbage collector tasks
    */
   modificationTimestamp: number;
+
+  /**
+   * Name of the crawler, which was the last crawler who modified this queue item. Default is "crawler"
+   */
+  modifiedBy: string;
 }

@@ -173,7 +173,7 @@ export interface FetchQueue {
    *  If the operation was successful, `error` will be `null`.
    * @return Promise<boolean> value of the promise is true if it exists, false otherwise. if callback is not defined
    */
-  exists(url: string, callback: Function | null): Promise<boolean | void>;
+  exists(url: string, callback?: Function): Promise<boolean | void>;
 
   /**
    * Get a queue item by index
@@ -185,7 +185,7 @@ export interface FetchQueue {
    * Promise will be rejected with 'out of range' value
    * @deprecated
    */
-  get(index: number, callback: Function | null): Promise<QueueItem | void>;
+  get(index: number, callback?: Function): Promise<QueueItem | void>;
 
   /**
    * Adds an item to the queue
@@ -201,7 +201,7 @@ export interface FetchQueue {
    * that was added to the queue. It's {@link QueueItem.status} property
    * will have changed to `{@link QueueItemStatus.Queued}.
    */
-  add(queueItem: QueueItem, force: boolean, callback: Function | null): Promise<QueueItem | void>;
+  add(queueItem: QueueItem, force: boolean, callback?: Function): Promise<QueueItem | void>;
 
   /**
    * Updates a queue item in the queue.
@@ -212,7 +212,7 @@ export interface FetchQueue {
    * If the operation was successful, `error` will be `null`.
    * @return Promise<QueueItem> with updated {@link QueueItem} if callback is not defined
    */
-  update(id: Number, updates: QueueItem, callback: Function | null): Promise<QueueItem | void>;
+  update(id: Number, updates: QueueItem, callback?: Function): Promise<QueueItem | void>;
 
   /**
    * Gets the first unfetched item in the queue
@@ -223,7 +223,7 @@ export interface FetchQueue {
    * If there are unfetched queue items left, {@link QueueItem} will be the oldest one found.
    * If not, value of the promise will be `null`.
    */
-  oldestUnfetchedItem(callback: Function | null): Promise<QueueItem | null | void>;
+  oldestUnfetchedItem(callback?: Function): Promise<QueueItem | null | void>;
 
   /**
    * Gets the maximum value of a stateData property from all the items in the
@@ -234,7 +234,7 @@ export interface FetchQueue {
    * If the operation was successful, `error` will be `null`.
    * @return Promise<Number> calculated value if callback is undefined
    */
-  max(statisticName: string, callback: Function | null): Promise<number | void>;
+  max(statisticName: string, callback?: Function): Promise<number | void>;
 
   /**
    * Gets the minimum value of a stateData property from all the items in the
@@ -245,7 +245,7 @@ export interface FetchQueue {
    * If the operation was successful, `error` will be `null`.
    * @return Promise<Number> calculated value if callback is undefined
    */
-  min(statisticName: string, callback: Function | null): Promise<number | void>;
+  min(statisticName: string, callback?: Function): Promise<number | void>;
 
   /**
    * Gets the average value of a stateData property from all the items in the
@@ -256,7 +256,7 @@ export interface FetchQueue {
    * If the operation was successful, `error` will be `null`.
    * @return Promise<Number> calculated value if callback is undefined
    */
-  avg(statisticName: string, callback: Function | null): Promise<number | void>;
+  avg(statisticName: string, callback?: Function): Promise<number | void>;
 
   /**
    * Counts the items in the queue that match a selector
@@ -266,7 +266,7 @@ export interface FetchQueue {
    * If the operation was successful, `error` will be `null` and `items` will be an array of QueueItems.
    * @return Promise<Number> with value of calculated items. If callback is undefined
    */
-  countItems(comparator: object, callback: Function | null): Promise<number | void>;
+  countItems(comparator: object, callback?: Function): Promise<number | void>;
 
   /**
    * Filters and returns the items in the queue that match a selector
@@ -276,7 +276,7 @@ export interface FetchQueue {
    * `error` will be `null` and `items` will be an array of QueueItems.
    * @return Promise<Number> with value of calculated items. If callback if undefined.
    */
-  filterItems(comparator: object, callback: Function | null): Promise<QueueItem[] | void>;
+  filterItems(comparator: object, callback?: Function): Promise<QueueItem[] | void>;
 
   /**
    * Gets the total number of queue items in the queue
@@ -284,17 +284,17 @@ export interface FetchQueue {
    * If the operation was successful, `error` will be `null`.
    * @return Promise<Number> total number of queued items. If callback is undefined
    */
-  getLength(callback: Function | null): Promise<number | void>;
+  getLength(callback?: Function): Promise<number | void>;
 
   /**
    * @deprecated
    */
-  freeze(filename: string, callback: Function | null): Promise<boolean | void>;
+  freeze(filename: string, callback?: Function): Promise<boolean | void>;
 
   /**
    * @deprecated
    */
-  defrost(filename: string, callback: Function | null): Promise<boolean | void>;
+  defrost(filename: string, callback?: Function): Promise<boolean | void>;
 
   /*
    * custom methods
@@ -306,7 +306,7 @@ export interface FetchQueue {
    * @param callback callback function
    * @returns Promise<void> if no callback is defined
    */
-  init(config: MongoDbQueueConfig | any, callback: Function | null): Promise<any | void>;
+  init(config: MongoDbQueueConfig | any, callback?: Function): Promise<any | void>;
 
   /**
    * Finalize method - close a connection
@@ -315,5 +315,5 @@ export interface FetchQueue {
    * @param callback callback function
    * @returns Promise<void> if no callback is defined
    */
-  finalize(config: MongoDbQueueConfig | any, callback: Function | null): Promise<any | void>;
+  finalize(config: MongoDbQueueConfig | any, callback?: Function): Promise<any | void>;
 }

@@ -1,0 +1,12 @@
+---
+applications:
+  - name: crawler
+    instances: 0
+    memory: 500M
+    disk_quota: 500M
+    health-check-type: process
+    timeout: 60
+    command: /bin/cat
+    buildpack: https://github.com/cloudfoundry/nodejs-buildpack
+    services:
+      - mongoqueue
