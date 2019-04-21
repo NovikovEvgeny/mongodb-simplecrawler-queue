@@ -43,7 +43,7 @@ export class MongoDbQueue implements FetchQueue {
       };
     }
 
-    this.client = new MongoClient(this.config.url);
+    this.client = new MongoClient(this.config.url, { useNewUrlParser: true });
   }
 
   private async addToQueue(queueItem: QueueItem, filter: object): Promise<MongoQueueItem | null> {

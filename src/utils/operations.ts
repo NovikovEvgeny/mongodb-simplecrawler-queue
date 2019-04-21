@@ -122,7 +122,6 @@ export class Operations {
       }
 
       const aggregationResultCrawlers = await aggregationResultCrawlersRes.toArray();
-      console.log(aggregationResultCrawlers);
       aggregationResult.crawlers = [];
       for (let i = 0; i < aggregationResultCrawlers.length; i += 1) {
         aggregationResult.crawlers.push({

@@ -15,7 +15,7 @@ export class Utils {
       return;
     }
 
-    const client = new MongoClient(connConfig.url);
+    const client = new MongoClient(connConfig.url, { useNewUrlParser: true });
     await client.connect();
     const db: Db = client.db(connConfig.dbName || 'crawler');
     const queue: Collection = db.collection(connConfig.collectionName || 'queue');
@@ -50,7 +50,7 @@ export class Utils {
       return;
     }
 
-    const client = new MongoClient(connectionConfig.url);
+    const client = new MongoClient(connectionConfig.url, { useNewUrlParser: true });
     await client.connect();
     const db: Db = client.db(connectionConfig.dbName || 'crawler');
     const queueCollection: Collection = db.collection(connectionConfig.collectionName || 'queue');
@@ -90,7 +90,7 @@ export class Utils {
   }
 
   async dropQueue(connectionConfig: MongoDbQueueConfig): Promise<void> {
-    const client = new MongoClient(connectionConfig.url);
+    const client = new MongoClient(connectionConfig.url, { useNewUrlParser: true });
     await client.connect();
     const db: Db = client.db(connectionConfig.dbName);
     const statisticCollName = connectionConfig.monitorConfig.statisticCollectionName || 'statistic';

@@ -38,7 +38,7 @@ crawlerQueue.init(err => {
     console.log('queue init is done');
 
     const crawler = new Crawler('https://en.wikipedia.org/wiki/Main_Page');
-    crawler.maxDepth = 1;
+    crawler.maxDepth = 3;
     crawler.allowInitialDomainChange = false;
     crawler.filterByDomain = true;
     crawler.interval = 250;
