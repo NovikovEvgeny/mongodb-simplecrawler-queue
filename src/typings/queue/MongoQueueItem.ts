@@ -1,5 +1,5 @@
-import { QueueItem } from './FetchQueueInterface';
 import { ObjectId } from 'mongodb';
+import { QueueItem } from './FetchQueueInterface';
 
 /**
  * MongoQueue Item interface. Extends {@link QueueItem} interface

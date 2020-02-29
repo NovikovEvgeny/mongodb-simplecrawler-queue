@@ -1,15 +1,29 @@
-import { Collection, Db, MongoClient, ObjectId } from 'mongodb';
-import { AllowedStatistics, FetchQueue, QueueError, QueueItem, QueueItemStatus } from './FetchQueueInterface';
-import { MongoDbQueueConfig } from './MongoDBQueueConfig';
-import { MongoQueueItem } from './MongoQueueItem';
-import { Operations } from '../../utils/operations';
+import {
+  Collection, Db, MongoClient, ObjectId,
+} from 'mongodb';
+import {
+  AllowedStatistics,
+  FetchQueue,
+  QueueError,
+  QueueItem,
+  QueueItemStatus,
+  MongoDbQueueConfig,
+  MongoQueueItem,
+} from './typings';
+import { GarbageCollector } from './GarbageCollector';
+import { Monitor } from './Monitor';
 
 export class MongoDbQueue implements FetchQueue {
   config: MongoDbQueueConfig;
+
   client: MongoClient;
+
   db!: Db;
+
   collection!: Collection<MongoQueueItem>;
+
   garbageCollector!: GarbageCollector;
+
   monitor!: Monitor;
 
   constructor(config: MongoDbQueueConfig | any) {
@@ -47,15 +61,16 @@ export class MongoDbQueue implements FetchQueue {
   }
 
   private async addToQueue(queueItem: QueueItem, filter: object): Promise<MongoQueueItem | null> {
-    const addItemCopy = Object.assign({}, queueItem);
+    const addItemCopy = { ...queueItem };
     addItemCopy.status = QueueItemStatus.Queued;
 
     // upsert means add element if no elements found by the filter
     const res = await this.collection
-                          .updateOne(
-                            filter,
-                            { $setOnInsert: addItemCopy },
-                            { upsert: true });
+      .updateOne(
+        filter,
+        { $setOnInsert: addItemCopy },
+        { upsert: true },
+      );
     // upserted count count = 0 -> no elements were added
     if (res.upsertedCount === 0) {
       return null;
@@ -72,37 +87,34 @@ export class MongoDbQueue implements FetchQueue {
   }
 
   private convertForUpdate(obj: any, parent: string, finalObject: any) {
-    for (const key in obj) {
-      if (obj.hasOwnProperty(key)) {
-        if (typeof obj[key] === 'object') {
-          this.convertForUpdate(obj[key], (parent ? parent + '.' : '') + key, finalObject);
-        } else {
-          if (key === '_id') {
-            finalObject[`${parent ? parent + '.' : ''}${key.toString()}`] = new ObjectId('${obj[key]}');
-          } else {
-            finalObject[`${parent ? parent + '.' : ''}${key.toString()}`] = obj[key];
-          }
-        }
+    Object.entries(obj).forEach(([key, value]) => {
+      if (!value && typeof value === 'object') {
+        this.convertForUpdate(value, (parent ? `${parent}.` : '') + key, finalObject);
+      } else if (key === '_id') {
+        // eslint-disable-next-line no-param-reassign
+        finalObject[`${parent ? `${parent}.` : ''}${key.toString()}`] = new ObjectId(String(value));
+      } else {
+        // eslint-disable-next-line no-param-reassign
+        finalObject[`${parent ? `${parent}.` : ''}${key.toString()}`] = value;
       }
-    }
+    });
   }
 
   private convertForFilter(obj: any, parent: string, finalObject: any) {
-    for (const key in obj) {
-      if (obj.hasOwnProperty(key)) {
-        if (typeof obj[key] === 'object') {
-          this.convertForFilter(obj[key], (parent ? parent + '.' : '') + key, finalObject);
-        } else {
-          if (key === '_id') {
-            finalObject[`${parent ? parent + '.' : ''}${key.toString()}`] = { $eq: new ObjectId('${obj[key]}') };
-          } else {
-            finalObject[`${parent ? parent + '.' : ''}${key.toString()}`] = { $eq: obj[key] };
-          }
-        }
+    Object.entries(obj).forEach(([key, value]) => {
+      if (!value && typeof value === 'object') {
+        this.convertForFilter(value, (parent ? `${parent}.` : '') + key, finalObject);
+      } else if (key === '_id') {
+        // eslint-disable-next-line no-param-reassign
+        finalObject[`${parent ? `${parent}.` : ''}${key.toString()}`] = { $eq: new ObjectId(String(value)) };
+      } else {
+        // eslint-disable-next-line no-param-reassign
+        finalObject[`${parent ? `${parent}.` : ''}${key.toString()}`] = { $eq: value };
       }
-    }
+    });
   }
 
+  // eslint-disable-next-line class-methods-use-this
   private handleCallback<T>(error: any, returnResult: any, callback?: Function): Promise<T> {
     let returnError = error;
     if (returnError) {
@@ -121,29 +133,27 @@ export class MongoDbQueue implements FetchQueue {
   async init(callback?: Function): Promise<void> {
     let returnError = null;
     try {
-
       await this.client.connect();
       this.db = this.client.db(this.config.dbName);
       this.collection = this.db.collection(this.config.collectionName);
 
       await this.collection.createIndex(
         { status: 1 },
-        { partialFilterExpression: { status: { $eq: QueueItemStatus.Queued } } });
+        { partialFilterExpression: { status: { $eq: QueueItemStatus.Queued } } },
+      );
 
       await this.collection.createIndex({ url: 'hashed' });
 
       if (this.config.GCConfig.run) {
-        this.garbageCollector =
-          new GarbageCollector(this.collection, this.config.GCConfig.msInterval);
+        this.garbageCollector = new GarbageCollector(this.collection, this.config.GCConfig.msInterval);
         this.garbageCollector.start();
       }
 
       if (this.config.monitorConfig.run) {
-        const statisticCollection =
-          this.db.collection(this.config.monitorConfig.statisticCollectionName || 'statistic');
+        const statisticCollection = this.db
+          .collection(this.config.monitorConfig.statisticCollectionName || 'statistic');
 
-        this.monitor =
-          new Monitor(this.collection, statisticCollection, this.config.monitorConfig.msInterval);
+        this.monitor = new Monitor(this.collection, statisticCollection, this.config.monitorConfig.msInterval);
 
         this.monitor.start();
       }
@@ -184,17 +194,18 @@ export class MongoDbQueue implements FetchQueue {
     let returnError = null;
     let elem = null;
     try {
-      const queueItem = Object.assign({
+      const queueItem = {
         modificationTimestamp: Date.now(),
         modifiedBy: this.config.crawlerName,
-      }, queueItemOriginal);
+        ...queueItemOriginal,
+      };
       delete queueItem.id;
 
       if (force) {
         elem = await this.addToQueue(queueItem, queueItem);
         if (elem === null) {
-          throw new Error('Can\'t add a queueItem instance twice. ' +
-            'You may create a new one from the same URL however.');
+          throw new Error('Can\'t add a queueItem instance twice. '
+            + 'You may create a new one from the same URL however.');
         }
       } else {
         elem = await this.addToQueue(queueItem, { url: queueItem.url });
@@ -248,9 +259,9 @@ export class MongoDbQueue implements FetchQueue {
       updatesAsAnObject.modifiedBy = this.config.crawlerName;
 
       const res = await this.collection
-                            .findOneAndUpdate({ _id: new ObjectId(id) },
-                              { $set: updatesAsAnObject },
-                              { returnOriginal: false });
+        .findOneAndUpdate({ _id: new ObjectId(id) },
+          { $set: updatesAsAnObject },
+          { returnOriginal: false });
 
       if (res.ok === 1) {
         resultQueueItem = res.value;
@@ -275,13 +286,14 @@ export class MongoDbQueue implements FetchQueue {
         .collection
         .findOneAndUpdate(
           { status: QueueItemStatus.Queued },
-        {
-          $set: {
-            status: QueueItemStatus.Pulled,
-            modificationTimestamp: Date.now(),
-            modifiedBy: this.config.crawlerName,
+          {
+            $set: {
+              status: QueueItemStatus.Pulled,
+              modificationTimestamp: Date.now(),
+              modifiedBy: this.config.crawlerName,
+            },
           },
-        });
+        );
 
       if (res.ok === 1) {
         oldestUnfetchedItem = res.value;
@@ -301,12 +313,12 @@ export class MongoDbQueue implements FetchQueue {
     let returnError = null;
     let result: any = null;
     try {
-      if (!Object.values(AllowedStatistics).includes(statisticName)) {
+      if (!(statisticName in AllowedStatistics)) {
         throw new Error('Invalid statistic');
       }
 
       const matchObject: any = {};
-      matchObject['fetched'] = true;
+      matchObject.fetched = true;
       matchObject[`stateData.${statisticName}`] = { $type: ['number'] };
 
       result = await this.collection.aggregate([
@@ -331,12 +343,12 @@ export class MongoDbQueue implements FetchQueue {
     let returnError = null;
     let result: any = null;
     try {
-      if (!Object.values(AllowedStatistics).includes(statisticName)) {
+      if (!(statisticName in AllowedStatistics)) {
         throw new Error('Invalid statistic');
       }
 
       const matchObject: any = {};
-      matchObject['fetched'] = true;
+      matchObject.fetched = true;
       matchObject[`stateData.${statisticName}`] = { $type: ['number'] };
 
       result = await this.collection.aggregate([
@@ -361,12 +373,12 @@ export class MongoDbQueue implements FetchQueue {
     let returnError = null;
     let result: any = null;
     try {
-      if (!Object.values(AllowedStatistics).includes(statisticName)) {
+      if (!(statisticName in AllowedStatistics)) {
         throw new Error('Invalid statistic');
       }
 
       const matchObject: any = {};
-      matchObject['fetched'] = true;
+      matchObject.fetched = true;
       matchObject[`stateData.${statisticName}`] = { $type: ['number'] };
 
       result = await this.collection.aggregate([
@@ -430,72 +442,5 @@ export class MongoDbQueue implements FetchQueue {
 
   async defrost(filename: string, callback?: Function): Promise<boolean | void> {
     return this.handleCallback(null, true, callback);
-  }
-}
-
-class GarbageCollector {
-  collection: Collection<MongoQueueItem>;
-  timeoutId: any;
-  msInterval: number; // default is 2 min (see constructor)
-
-  constructor(collection: Collection<MongoQueueItem>, msInterval: number = 1000 * 60 * 2) {
-    this.collection = collection;
-    this.msInterval = msInterval;
-  }
-
-  start() {
-    this.timeoutId = setTimeout(
-      () => {
-        Operations.gcTask(this.collection, this.msInterval)
-                  .then(() => {
-                    setTimeout(
-                      () => {
-                        this.start();
-                      },
-                      this.msInterval);
-                  })
-                  .catch((error: Error) => {
-                    console.log(error);
-                  });
-      }, this.msInterval);
-  }
-
-  stop() {
-    clearTimeout(this.timeoutId);
-  }
-}
-
-class Monitor {
-  statisticCollection: Collection<MongoQueueItem>;
-  queue: Collection<MongoQueueItem>;
-  timeoutId: any;
-  msInterval: number; // default is 1 min
-
-  constructor(queueCollection: Collection<MongoQueueItem>,
-              statisticCollection: Collection<MongoQueueItem>,
-              msInterval: number = 1000 * 60) {
-    this.statisticCollection = statisticCollection;
-    this.queue = queueCollection;
-    this.msInterval = msInterval;
-  }
-
-  start() {
-    this.onMonitorTask();
-  }
-
-  onMonitorTask() {
-    Operations.monitorTask(this.queue, this.statisticCollection)
-              .then(() => {
-                setTimeout(() => {
-                  this.onMonitorTask();
-                }, this.msInterval);
-              })
-              .catch((error: Error) => {
-                console.log(error);
-              });
-  }
-
-  stop() {
-    clearTimeout(this.timeoutId);
   }
 }

@@ -1,15 +1,13 @@
-import { MongoDbQueue } from './types/queue/MongoQueue';
-import { MongoDbQueueConfig } from './types/queue/MongoDBQueueConfig';
 import {
-  QueueItem,
+  MongoDbQueueConfig, QueueItem,
   QueueItemStatus,
   AllowedStatistics,
   StateData,
   FetchQueue,
   QueueError,
-} from './types/queue/FetchQueueInterface';
-import { Utils } from './utils/util';
-import { Operations } from './utils/operations';
+} from './typings/queue';
+import { Operations, Utils } from './utils';
+import { MongoDbQueue } from './MongoQueue';
 
 export {
   MongoDbQueue,

@@ -1,6 +1,5 @@
 import { Collection } from 'mongodb';
-import { QueueItemStatus } from '..';
-import { MongoQueueItem } from '../types/queue/MongoQueueItem';
+import { QueueItemStatus, MongoQueueItem } from '../typings';
 
 /**
  * Aggregation result object used for monitoring tasks
@@ -47,7 +46,6 @@ export interface AggregationResult {
  * Operations class - single tasks operation
  */
 export class Operations {
-
   /**
    * Single Monitoring task operation - collect all statistic data about state of the queue
    * and put it to statistic collection as new Item
@@ -103,10 +101,18 @@ export class Operations {
     ]);
 
     try {
-      const [totalCountPromiseRes, fetchedCountPromiseRes,
-        aggregationResultPromiseRes, aggregationResultArrPromiseRes, aggregationResultCrawlersRes] =
-        await Promise.all([totalCountPromise, fetchedCountPromise,
-          aggregationResultPromise, aggregationResultArrPromise, aggregationResultCrawlersPromise]);
+      const [totalCountPromiseRes,
+        fetchedCountPromiseRes,
+        aggregationResultPromiseRes,
+        aggregationResultArrPromiseRes,
+        aggregationResultCrawlersRes,
+      ] = await Promise.all([
+        totalCountPromise,
+        fetchedCountPromise,
+        aggregationResultPromise,
+        aggregationResultArrPromise,
+        aggregationResultCrawlersPromise,
+      ]);
 
       let aggregationResult = await aggregationResultPromiseRes.next();
       if (!aggregationResult) {
@@ -148,7 +154,7 @@ export class Operations {
   static async gcTask(queueCollection: Collection<MongoQueueItem>, invalidPeriodMs: number) {
     const currentTime = new Date().getTime();
 
-    const res = await queueCollection.updateMany(
+    return queueCollection.updateMany(
       {
         $and: [
           { fetched: { $ne: true } },
@@ -158,6 +164,5 @@ export class Operations {
       },
       { $set: { status: QueueItemStatus.Queued, modificationTimestamp: currentTime } },
     );
-    return res;
   }
 }
