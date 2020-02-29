@@ -57,7 +57,7 @@ export class MongoDbQueue implements FetchQueue {
       };
     }
 
-    this.client = new MongoClient(this.config.url, { useNewUrlParser: true });
+    this.client = new MongoClient(this.config.url, { useNewUrlParser: true, useUnifiedTopology: true });
   }
 
   private async addToQueue(queueItem: QueueItem, filter: object): Promise<MongoQueueItem | null> {
@@ -88,7 +88,7 @@ export class MongoDbQueue implements FetchQueue {
 
   private convertForUpdate(obj: any, parent: string, finalObject: any) {
     Object.entries(obj).forEach(([key, value]) => {
-      if (!value && typeof value === 'object') {
+      if (value && typeof value === 'object') {
         this.convertForUpdate(value, (parent ? `${parent}.` : '') + key, finalObject);
       } else if (key === '_id') {
         // eslint-disable-next-line no-param-reassign
@@ -102,7 +102,7 @@ export class MongoDbQueue implements FetchQueue {
 
   private convertForFilter(obj: any, parent: string, finalObject: any) {
     Object.entries(obj).forEach(([key, value]) => {
-      if (!value && typeof value === 'object') {
+      if (value && typeof value === 'object') {
         this.convertForFilter(value, (parent ? `${parent}.` : '') + key, finalObject);
       } else if (key === '_id') {
         // eslint-disable-next-line no-param-reassign

@@ -146,3 +146,17 @@ Also you can fully drop the queue using `dropQueue` method. Note: this method al
 
 ## Performance
 // TODO tests and results, some graphics
+
+
+## MongoDB as a docker image locally
+
+Start mongo as a docker
+
+```
+docker run --name <IMAGE_NAME> -p 27017:27017 -d mongo:3.6.17-xenial
+```
+
+Connect to the running image
+```
+docker exec -it <IMAGE_NAME> bash
+```

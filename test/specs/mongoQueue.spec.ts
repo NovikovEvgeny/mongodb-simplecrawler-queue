@@ -10,17 +10,23 @@ describe('Queue methods', () => {
   const crawler = new Crawler('http://127.0.0.1:27017/');
 
   const connectionConfig = {
-    url: 'mongodb://google:27017', // mongodb://localhost:27017
+    url: 'mongodb://192.168.99.100:27017', // mongodb://localhost:27017
     dbName: 'crawler',
     collectionName: 'queue',
   };
 
   const crawlerQueue = new MongoDbQueue(connectionConfig);
 
-  beforeEach(async () => {
+  beforeAll(async () => {
     await crawlerQueue.init();
+    await crawlerQueue.drop();
     // @ts-ignore
     crawler.queue = crawlerQueue;
+  });
+
+  afterAll(async () => {
+    console.log('after all');
+    await crawlerQueue.client.close();
   });
 
   const addToQueueRec = (index: number, done: Function, updating: any) => {
@@ -32,7 +38,8 @@ describe('Queue methods', () => {
     } else {
       crawler.queue.add(queue[index], false, (err, queueItem) => {
         if (updating) {
-          expect(err).toBe('error');
+          expect(err).toBeInstanceOf(Error);
+          expect(err!.message).toMatch(/Resource already exists in queue!/);
           addToQueueRec(index + 1, done, updating);
         } else {
           expect(err).toBeNil();
@@ -72,7 +79,7 @@ describe('Queue methods', () => {
       expect(error).toBeNil();
       crawler.queue.get(length! * 2, (getErr, queueItem) => {
         expect(queueItem).toBeNil();
-        expect(error).toBe('error');
+        expect(getErr).toBeInstanceOf(Error);
         done();
       });
     });
@@ -169,7 +176,8 @@ describe('Queue methods', () => {
   it('should error when passing unknown properties to queue methods', (done) => {
     crawler.queue.max('humdidum', (error, max) => {
       expect(max).toBeNil();
-      expect(error).toEqual('error');
+      expect(error).toBeInstanceOf(Error);
+      expect(error!.message).toMatch(/Invalid statistic/);
       done();
     });
   });
@@ -189,16 +197,16 @@ describe('Queue methods', () => {
 
       // @ts-ignore
       crawler.queue.add(queueItems[1], false, (error1, newQueueItem1) => {
-        expect(error1).toBeNil();
-        expect(newQueueItem1.url).toEqual(queueItems[1].url);
-
+        expect(error1).toBeInstanceOf(Error);
+        expect(newQueueItem1).toBeNil();
         // @ts-ignore
         crawler.queue.add(queueItems[2], true, (error2, newQueueItem2) => {
           expect(error2).toBeNil();
           expect(newQueueItem2.url).toEqual(queueItems[2].url);
 
           crawler.queue.add(newQueueItem, true, (error3, newQueueItem3) => {
-            expect(error).toMatch(/twice/i);
+            expect(error3).toBeInstanceOf(Error);
+            expect(error3!.message).toMatch(/twice/i);
             expect(newQueueItem3).toBeNil();
             done();
           });
@@ -242,18 +250,18 @@ describe('Queue methods', () => {
     };
 
     crawlerTest.on('queueerror', (error, queueItem) => {
-      expect(error).toBe(Error);
+      expect(error).toBeInstanceOf(Error);
       // @ts-ignore
       expect(error!.message).toEqual('Not updating this queueItem');
       expect(queueItem).not.toBeNil();
       expect(queueItem).toHaveProperty('url');
       expect(queueItem).toHaveProperty('fetched');
       expect(queueItem).toHaveProperty('status');
-      crawler.stop(true);
+      crawlerTest.stop(true);
       done();
     });
 
-    crawler.start();
+    crawlerTest.start();
   });
 
   it("Doesn't queue URL with reordered query parameters", (done) => {
