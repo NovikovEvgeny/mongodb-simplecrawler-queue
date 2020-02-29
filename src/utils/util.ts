@@ -1,6 +1,14 @@
 import { Collection, Db, MongoClient } from 'mongodb';
-import { MongoDbQueueConfig } from '..';
+import { MongoDbQueueConfig } from '../typings';
 import { AggregationResult, Operations } from './operations';
+
+/*
+  Helper to convert from ms to other time units
+*/
+enum TimeUnit {
+  SECOND = 1000,
+  MINUTE = 1000 * 60,
+}
 
 export class Utils {
   private static wait(ms: number) {
@@ -9,7 +17,7 @@ export class Utils {
     });
   }
 
-  async runMonitotoring(connConfig: MongoDbQueueConfig, countToFinish: number = 0): Promise<void> {
+  static async runMonitoring(connConfig: MongoDbQueueConfig, countToFinish: number = 0): Promise<void> {
     if (!connConfig || !connConfig.monitorConfig || !connConfig.monitorConfig.statisticCollectionName) {
       console.log('Monitor Config configured to not run GC tasks');
       return;
@@ -25,6 +33,7 @@ export class Utils {
     let noChangesIterations = 0;
 
     while (!crawlerJobFinished) {
+      // eslint-disable-next-line no-await-in-loop
       const aggregationResult: AggregationResult = await Operations.monitorTask(queue, statisticCollection);
 
       if (aggregationResult.totalCount === aggregationResult.fetchedCount) {
@@ -33,18 +42,19 @@ export class Utils {
         noChangesIterations = 0;
       }
 
-      if (noChangesIterations === countToFinish && countToFinish !== 0) {
+      if ((noChangesIterations === countToFinish) && (countToFinish !== 0)) {
         const template = 'INFO: Count of total items equal to count of fetched items for 15 minutes. Stop the monitor';
         console.log(`[${aggregationResult.timestamp}]: ${template}`);
         crawlerJobFinished = true;
       }
       // wait for 1 minute
+      // eslint-disable-next-line no-await-in-loop
       await Utils.wait(TimeUnit.MINUTE);
     }
     await client.close();
   }
 
-  async runGC(connectionConfig: MongoDbQueueConfig, countToFinish: number = 0): Promise<void> {
+  static async runGC(connectionConfig: MongoDbQueueConfig, countToFinish: number = 0): Promise<void> {
     if (!connectionConfig || !connectionConfig.GCConfig || !connectionConfig.GCConfig.run) {
       console.log('GC Config configured to not run GC tasks');
       return;
@@ -65,7 +75,9 @@ export class Utils {
     const invalidPeriod = connectionConfig.GCConfig.msInterval || TimeUnit.MINUTE * 10;
 
     while (!crawlerJobFinished) {
+      // eslint-disable-next-line no-await-in-loop
       totalCount = await queueCollection.countDocuments();
+      // eslint-disable-next-line no-await-in-loop
       fetchedCount = await queueCollection.find({ fetched: true }).count();
 
       const res: any = Operations.gcTask(queueCollection, invalidPeriod);
@@ -79,17 +91,18 @@ export class Utils {
         noChangesIterations = 0;
       }
 
-      if (noChangesIterations === countToFinish && countToFinish !== 0) {
+      if ((noChangesIterations === countToFinish) && (countToFinish !== 0)) {
         const msg = ' INFO: Count of total items equal to count of fetched items for 15 minutes. Stop the GC';
         console.log(`[${new Date().getTime()}]: ${msg}`);
         crawlerJobFinished = true;
       }
+      // eslint-disable-next-line no-await-in-loop
       await Utils.wait(invalidPeriod);
     }
     await client.close();
   }
 
-  async dropQueue(connectionConfig: MongoDbQueueConfig): Promise<void> {
+  static async dropQueue(connectionConfig: MongoDbQueueConfig): Promise<void> {
     const client = new MongoClient(connectionConfig.url, { useNewUrlParser: true });
     await client.connect();
     const db: Db = client.db(connectionConfig.dbName);
@@ -106,12 +119,4 @@ export class Utils {
 
     await client.close();
   }
-}
-
-/*
-  Helper to convert from ms to other time units
-*/
-enum TimeUnit {
-  SECOND = 1000,
-  MINUTE = 1000 * 60,
 }
