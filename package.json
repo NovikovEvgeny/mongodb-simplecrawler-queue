@@ -2,8 +2,8 @@
   "name": "mongodb-simplecrawler-queue",
   "version": "0.4.0",
   "description": "MongoDB FetchQueue Implementation for Simplecrawler",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "main": "lib/src/index.js",
+  "types": "lib/src/index.d.ts",
   "scripts": {
     "build": "tsc",
     "lint": "eslint src/ test/ --ext .ts",
