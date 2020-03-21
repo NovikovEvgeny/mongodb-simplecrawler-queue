@@ -1,5 +1,5 @@
 // eslint-disable-next-line max-classes-per-file
-import { MongoClientOptions } from 'mongodb';
+import { MongoClientOptions, ObjectId } from 'mongodb';
 
 export function mockMongoClient() {
   const clientConnectionMock = jest.fn().mockImplementation(() => ({ body: true }));
@@ -17,6 +17,8 @@ export function mockMongoClient() {
   const collectionCountDocumentsMock = jest.fn().mockImplementation(() => true);
 
   jest.mock('mongodb', () => ({
+    ObjectId,
+
     MongoClient: class MockedMongoClient {
       url: string;
 
