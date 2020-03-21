@@ -88,7 +88,7 @@ export class MongoDbQueue implements FetchQueue {
 
   private convertForUpdate(obj: any, parent: string, finalObject: any) {
     Object.entries(obj).forEach(([key, value]) => {
-      if (value && typeof value === 'object') {
+      if (value && typeof value === 'object' && key !== '_id') {
         this.convertForUpdate(value, (parent ? `${parent}.` : '') + key, finalObject);
       } else if (key === '_id') {
         // eslint-disable-next-line no-param-reassign
@@ -102,7 +102,7 @@ export class MongoDbQueue implements FetchQueue {
 
   private convertForFilter(obj: any, parent: string, finalObject: any) {
     Object.entries(obj).forEach(([key, value]) => {
-      if (value && typeof value === 'object') {
+      if (value && typeof value === 'object' && key !== '_id') {
         this.convertForFilter(value, (parent ? `${parent}.` : '') + key, finalObject);
       } else if (key === '_id') {
         // eslint-disable-next-line no-param-reassign
